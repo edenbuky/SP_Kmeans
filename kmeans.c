@@ -56,7 +56,6 @@ int main(int argc, char **argv){
         iter = atoi(argv[2]);
         indx = 3;
     }
-    printf( "the argc = %d the file: %s\n",argc, argv[indx]);
     points = readPointsFromFile(argv[indx], &N, &d);
     
     
