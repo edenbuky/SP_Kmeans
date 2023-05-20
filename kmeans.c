@@ -18,7 +18,7 @@ typedef struct {
 
 point* readPointsFromFile(const char* filename, int* numPoints, int* dimensions);
 
-void initializeClusters(point* points, int K, cluster* clusters, int isFirst);
+void initializeClusters(point* points, int K, cluster* clusters, int d);
 
 void findNearestCluster(int* res, point x, cluster* clusters, int numClusters, int d);
 
@@ -34,33 +34,13 @@ void printPoint(point point, int d);
 
 void updateCentroids(cluster* clusters, int K, int d, int* isSame);
 
-void printPoints(point* points, int num, int d) {
-    int i,j;
-    for (i = 0; i < num; i++) {
-        //printf("Point %d:\n", i + 1);
-        for (j = 0; j < d; j++){
-                printf("%.4f", points[i].coordinates[j]);
-            if(j < d-1){
-                printf(",");
-            }
-        }
-        printf("\n");
-    }
-}
+void oneIter(point* points, int N, cluster* clusters, int K, int d, int* isSame);
 
-void printClusters(cluster* clusters, int num, int d){
-    int i;
-    for (i = 0; i < num; i++) {
-        printf("\nCluster %d:\n", i + 1);
-        printPoints(clusters[i].points,clusters[i].size, d);
-    }
-}
 
 int main(int argc, char **argv){
-    int K, d, N, indx, iter, isCentroidsSame, i, newSize;
+    int K, d, indx, N, iter, isCentroidsSame, i;
     point* points;
     cluster* clusters;
-    point* newPoints;
     
     if ( argc == 3 ){
         iter = 200;
@@ -88,52 +68,22 @@ int main(int argc, char **argv){
         return 1;
     }
     
-    initializeClusters(points, K, clusters, 1);
-
+    initializeClusters(points, K, clusters, d);
+    
     /* Assign every xi to the closest cluster k */
     isCentroidsSame = 0;
-    indx = 0;
     while (0 < iter && !isCentroidsSame){
         iter--;
-        for(i = K ; i < N ; i++){
-            findNearestCluster(&indx ,points[i], clusters, K, d);
-            newSize = clusters[indx].size + 1;
-            newPoints = (point*)realloc(clusters[indx].points, newSize * sizeof(point));
-            if (newPoints == NULL) {
-                printf("An Error Has Occurred - mem\n");
-                return 1;
-            }
-            /* Update the cluster's points array */
-            clusters[indx].points = newPoints;
-            clusters[indx].points[newSize - 1] = points[i];
-            clusters[indx].size = newSize;
-        }
-        
-        updateCentroids(clusters, K, d, &isCentroidsSame);
-        printf("\n");
-        for (i = 0 ; i < K; i++){
-            printPoint(clusters[i].centroid,d);
-        }
-//        
-//        printf("\n");
-//        for (i = 0 ; i < K; i++){
-//            printPoint(clusters[i].centroid,d);
-//        }
-        
-        
-        if (!isCentroidsSame){
-            initializeClusters(points, K, clusters, 0);
-        }
+        oneIter(points, N, clusters, K, d, &isCentroidsSame);
     }
-    if (iter == 0){
-        printf("An Error Has Occurred - iter\n");
-    }else{
-        for (i = 0 ; i < K; i++){
-            printPoint(clusters[i].centroid,d);
-        }
+    
+
+    for (i = 0 ; i < K; i++){
+        printPoint(clusters[i].centroid,d);
+        
     }
+    
     freePoints(points, N);
-    freeClusters(clusters, K);
     return 0;
 }
 
@@ -146,7 +96,7 @@ point* readPointsFromFile(const char* filename, int* numPoints, int* dimensions)
 
     file = fopen(filename, "r");
     if (file == NULL) {
-        printInvalidInputError("An Error Has Occurred -file\n");
+        printInvalidInputError("An Error Has Occurred\n");
         return NULL;
     }
     
@@ -164,7 +114,7 @@ point* readPointsFromFile(const char* filename, int* numPoints, int* dimensions)
             *dimensions = count;
         } else if (*dimensions != count) {
             fclose(file);
-            printInvalidInputError("An Error Has Occurred -bad d\n");
+            printInvalidInputError("An Error Has Occurred\n");
             return NULL;
         }
     }
@@ -172,7 +122,7 @@ point* readPointsFromFile(const char* filename, int* numPoints, int* dimensions)
     points = (point*)malloc(*numPoints * sizeof(point));
     if (points == NULL) {
         fclose(file);
-        printInvalidInputError("An Error Has Occurred - mem\n");
+        printInvalidInputError("An Error Has Occurred\n");
         return NULL;
     }
 
@@ -184,7 +134,7 @@ point* readPointsFromFile(const char* filename, int* numPoints, int* dimensions)
         if (points[pointIndex].coordinates == NULL) {
             fclose(file);
             freePoints(points, pointIndex);
-            printInvalidInputError("An Error Has Occurred - mem\n");
+            printInvalidInputError("An Error Has Occurred\n");
             return NULL;
         }
 
@@ -226,25 +176,19 @@ void freePoints(point* points, int numPoints) {
     free(points);
 }
 
-void initializeClusters(point* points, int K, cluster* clusters, int isFirst) {
-    int i;
+void initializeClusters(point* points, int K, cluster* clusters, int d){
+    int i,j;
     for (i = 0; i < K; i++) {
-        if (!isFirst){
-            free(clusters[i].points);
-        }
-        clusters[i].points = (point*)malloc(clusters[i].size * sizeof(point));
-        if (clusters[i].points == NULL) {
-            printInvalidInputError("An Error Has Occurred - mem");
+        clusters[i].centroid.coordinates = (double*)malloc(d * sizeof(double));
+        if (clusters[i].centroid.coordinates == NULL) {
+            printInvalidInputError("An Error Has Occurred");
             return;
         }
-        clusters[i].points[0] = points[i];
-        clusters[i].size = 1;
-        if(isFirst){
-            clusters[i].centroid = points[i];
-            
+        for (j = 0 ; j < d ; j++){
+            clusters[i].centroid.coordinates[j] = points[i].coordinates[j];
         }
-        
-    }
+        clusters[i].size = 0;
+        }
 }
 
 double euclideanDistance(double* p, double* q, int d) {
@@ -270,6 +214,7 @@ void findNearestCluster(int* res, point x, cluster* clusters, int K, int d) {
         }
     }
     (*res) = result;
+    
 }
 
 void printInvalidInputError(const char* message) {
@@ -291,21 +236,17 @@ void printPoint(point point, int d) {
 void updateCentroids(cluster* clusters, int K, int d, int* isSame) {
     int i,j,p;
     double distance, sum;
-    point* prevCentroids = (point*)malloc(K * sizeof(point));
+    point* prevCentroids;
+    prevCentroids = (point*)malloc(K * sizeof(point));
     if (prevCentroids == NULL) {
-        printf("An Error Has Occurred - mem\n");
-        
+        printf("An Error Has Occurred\n");
     }
-
     
     for (i = 0; i < K; i++) {
         prevCentroids[i].coordinates = (double*)malloc(d * sizeof(double));
         if (prevCentroids[i].coordinates == NULL) {
-            printf("An Error Has Occurred - mem\n");
-            
+            printf("An Error Has Occurred\n");
         }
-
-        
         for (j = 0; j < d; j++) {
             prevCentroids[i].coordinates[j] = clusters[i].centroid.coordinates[j];
         }
@@ -337,5 +278,40 @@ void updateCentroids(cluster* clusters, int K, int d, int* isSame) {
         free(prevCentroids[i].coordinates);
     }
     free(prevCentroids);
+}
+
+void oneIter(point* points, int N, cluster* clusters, int K, int d, int* isSame){
+    int i , indx, newSize;
+    point* newPoints;
+    indx = 0;
+    for(i = 0 ; i < N ; i++){
+        findNearestCluster(&indx ,points[i], clusters, K, d);
+        if( clusters[indx].size == 0){
+            clusters[indx].points = (point*)malloc(sizeof(point));
+            if (clusters[indx].points == NULL) {
+                printInvalidInputError("An Error Has Occurred - mem");
+            }
+            clusters[indx].points[0] = points[i];
+            clusters[indx].size = 1;
+        }
+        else{
+            newSize = clusters[indx].size + 1;
+            newPoints = (point*)realloc(clusters[indx].points, newSize * sizeof(point));
+            if (newPoints == NULL) {
+                printInvalidInputError("An Error Has Occurred - mem\n");
+            }
+            /* Update the cluster's points array */
+            clusters[indx].points = newPoints;
+            clusters[indx].points[newSize - 1] = points[i];
+            clusters[indx].size = newSize;
+        }
+    }
+
+    updateCentroids(clusters, K, d,  &(*isSame));
+
+    for (i = 0; i < K; i++) {
+        free(clusters[i].points);
+        clusters[i].size = 0;
+    }
 }
 
