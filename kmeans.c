@@ -28,19 +28,33 @@ void freePoints(point* points, int numPoints);
 
 void freeClusters(cluster* clusters, int K);
 
-void printPoints(point* points, int num, int d);
-
-void printClusters(cluster* clusters, int num, int d);
-
 void printInvalidInputError(const char* message);
-
-int hasOnlyUnity(int* array, int size);
-
-void updateArrayToUnity(int* array, int size);
 
 void printPoint(point point, int d);
 
 void updateCentroids(cluster* clusters, int K, int d, int* isSame);
+
+void printPoints(point* points, int num, int d) {
+    int i,j;
+    for (i = 0; i < num; i++) {
+        //printf("Point %d:\n", i + 1);
+        for (j = 0; j < d; j++){
+                printf("%.4f", points[i].coordinates[j]);
+            if(j < d-1){
+                printf(",");
+            }
+        }
+        printf("\n");
+    }
+}
+
+void printClusters(cluster* clusters, int num, int d){
+    int i;
+    for (i = 0; i < num; i++) {
+        printf("\nCluster %d:\n", i + 1);
+        printPoints(clusters[i].points,clusters[i].size, d);
+    }
+}
 
 int main(int argc, char **argv){
     int K, d, N, indx, iter, isCentroidsSame, i, newSize;
@@ -57,7 +71,6 @@ int main(int argc, char **argv){
         indx = 3;
     }
     points = readPointsFromFile(argv[indx], &N, &d);
-    
     
     K = atoi(argv[1]);
     if (K <= 1 || K >= N) {
@@ -97,6 +110,17 @@ int main(int argc, char **argv){
         }
         
         updateCentroids(clusters, K, d, &isCentroidsSame);
+        printf("\n");
+        for (i = 0 ; i < K; i++){
+            printPoint(clusters[i].centroid,d);
+        }
+//        
+//        printf("\n");
+//        for (i = 0 ; i < K; i++){
+//            printPoint(clusters[i].centroid,d);
+//        }
+        
+        
         if (!isCentroidsSame){
             initializeClusters(points, K, clusters, 0);
         }
@@ -171,8 +195,7 @@ point* readPointsFromFile(const char* filename, int* numPoints, int* dimensions)
             coordinateIndex++;
             token = strtok(NULL, ",");
         }
-
-        pointIndex++;
+        ++pointIndex;
     }
     fclose(file);
     return points;
@@ -289,23 +312,24 @@ void updateCentroids(cluster* clusters, int K, int d, int* isSame) {
     }
 
     
-    *isSame = 1; 
+    (*isSame) = 1;
 
     for (i = 0; i < K; i++) {
         
         for (j = 0; j < d; j++) {
             sum = 0.0;
-            for (p = 0; p < clusters[i].size; p++) {
+            for (p = 0; p < clusters[i].size; p++){
                 sum += clusters[i].points[p].coordinates[j];
             }
             clusters[i].centroid.coordinates[j] = sum / clusters[i].size;
         }
-
-        
+    }
+    
+    for (i = 0; i < K; i++) {
         distance = euclideanDistance(clusters[i].centroid.coordinates, prevCentroids[i].coordinates, d);
         if (distance >= EPSILON) {
-            *isSame = 0; 
-            break;       
+            (*isSame) = 0;
+            break;
         }
     }
 
@@ -314,3 +338,4 @@ void updateCentroids(cluster* clusters, int K, int d, int* isSame) {
     }
     free(prevCentroids);
 }
+
