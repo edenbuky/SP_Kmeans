@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include <ctype.h>
 
 #define MAX_ITER 1000
 #define EPSILON 0.001
@@ -16,7 +17,7 @@ typedef struct {
     int size;
 } cluster;
 
-point* readPointsFromFile(const char* filename, int* numPoints, int* dimensions);
+point* readPointsFromFile(int* numPoints, int* dimensions);
 
 void initializeClusters(point* points, int K, cluster* clusters, int d);
 
@@ -36,34 +37,48 @@ void updateCentroids(cluster* clusters, int K, int d, int* isSame);
 
 void oneIter(point* points, int N, cluster* clusters, int K, int d, int* isSame);
 
+int isNumber(const char* str);
 
 int main(int argc, char **argv){
-    int K, d, indx, N, iter, isCentroidsSame, i;
+    int K, d, N, iter, isCentroidsSame, i;
     point* points;
     cluster* clusters;
     
-    if ( argc == 3 ){
+    if ( argc < 3 ){
         iter = 200;
-        indx = 2;
     }
     else {
+        if (!isNumber(argv[2])) {
+            printf("Invalid maximum iteration!\n");
+            return 1;
+        }
         iter = atoi(argv[2]);
-        indx = 3;
     }
-    points = readPointsFromFile(argv[indx], &N, &d);
-    
-    K = atoi(argv[1]);
-    if (K <= 1 || K >= N) {
+
+    points = readPointsFromFile(&N, &d);
+    if (!isNumber(argv[1])) {
+        freePoints(points, N);
         printf("Invalid number of clusters!\n");
         return 1;
     }
-    if (iter < 1 || iter > MAX_ITER) {
-        printf("Invalid maximum iteration!\n");
+    else{
+        K = atoi(argv[1]);
+    }
+
+    if (K <= 1 || K >= N) {
+        freePoints(points, N);
+        printf("Invalid number of clusters!\n");
+        return 1;
+    }
+    if (iter < 1 || iter >= MAX_ITER) {
+        freePoints(points, N);
+        printf("Invalid maximum iteration!");
         return 1;
     }
     
     clusters = (cluster*)malloc(K * sizeof(cluster));
     if (clusters == NULL) {
+        freePoints(points, N);
         printf("An Error Has Occurred\n");
         return 1;
     }
@@ -76,33 +91,26 @@ int main(int argc, char **argv){
         iter--;
         oneIter(points, N, clusters, K, d, &isCentroidsSame);
     }
-    
-
     for (i = 0 ; i < K; i++){
         printPoint(clusters[i].centroid,d);
-        
+        printf("\n");
     }
-    
+    for (i = 0 ; i < K; i++){
+        free(clusters[i].centroid.coordinates);
+    }
+    free(clusters);
     freePoints(points, N);
     return 0;
 }
 
-point* readPointsFromFile(const char* filename, int* numPoints, int* dimensions) {
-    FILE* file;
+point* readPointsFromFile(int* numPoints, int* dimensions) {
     char line[256];
     int count, pointIndex, coordinateIndex;
     char* token;
     point* points;
-
-    file = fopen(filename, "r");
-    if (file == NULL) {
-        printInvalidInputError("An Error Has Occurred\n");
-        return NULL;
-    }
-    
     *numPoints = 0;
     *dimensions = 0;
-    while (fgets(line, sizeof(line), file)) {
+    while (fgets(line, sizeof(line), stdin)) {
         (*numPoints)++;
         count = 0;
         token = strtok(line, ",");
@@ -113,7 +121,6 @@ point* readPointsFromFile(const char* filename, int* numPoints, int* dimensions)
         if (*dimensions == 0) {
             *dimensions = count;
         } else if (*dimensions != count) {
-            fclose(file);
             printInvalidInputError("An Error Has Occurred\n");
             return NULL;
         }
@@ -121,18 +128,16 @@ point* readPointsFromFile(const char* filename, int* numPoints, int* dimensions)
     
     points = (point*)malloc(*numPoints * sizeof(point));
     if (points == NULL) {
-        fclose(file);
         printInvalidInputError("An Error Has Occurred\n");
         return NULL;
     }
 
-    rewind(file);
+    rewind(stdin);
 
     pointIndex = 0;
-    while (fgets(line, sizeof(line), file)) {
+    while (fgets(line, sizeof(line), stdin)) {
         points[pointIndex].coordinates = (double*)malloc(*dimensions * sizeof(double));
         if (points[pointIndex].coordinates == NULL) {
-            fclose(file);
             freePoints(points, pointIndex);
             printInvalidInputError("An Error Has Occurred\n");
             return NULL;
@@ -147,7 +152,6 @@ point* readPointsFromFile(const char* filename, int* numPoints, int* dimensions)
         }
         ++pointIndex;
     }
-    fclose(file);
     return points;
 }
 
@@ -225,12 +229,11 @@ void printInvalidInputError(const char* message) {
 void printPoint(point point, int d) {
     int i;
     for (i = 0; i < d; i++) {
-        printf("%.4f ", point.coordinates[i]);
+        printf("%.4f", point.coordinates[i]);
         if(i < d-1){
             printf(",");
         }
     }
-    printf("\n");
 }
 
 void updateCentroids(cluster* clusters, int K, int d, int* isSame) {
@@ -289,7 +292,7 @@ void oneIter(point* points, int N, cluster* clusters, int K, int d, int* isSame)
         if( clusters[indx].size == 0){
             clusters[indx].points = (point*)malloc(sizeof(point));
             if (clusters[indx].points == NULL) {
-                printInvalidInputError("An Error Has Occurred - mem");
+                printInvalidInputError("An Error Has Occurred\n");
             }
             clusters[indx].points[0] = points[i];
             clusters[indx].size = 1;
@@ -298,7 +301,7 @@ void oneIter(point* points, int N, cluster* clusters, int K, int d, int* isSame)
             newSize = clusters[indx].size + 1;
             newPoints = (point*)realloc(clusters[indx].points, newSize * sizeof(point));
             if (newPoints == NULL) {
-                printInvalidInputError("An Error Has Occurred - mem\n");
+                printInvalidInputError("An Error Has Occurred\n");
             }
             /* Update the cluster's points array */
             clusters[indx].points = newPoints;
@@ -314,4 +317,17 @@ void oneIter(point* points, int N, cluster* clusters, int K, int d, int* isSame)
         clusters[i].size = 0;
     }
 }
+int isNumber(const char* str) {
+    if (str == NULL || *str == '\0') {
+        return 0;
+    }
 
+    while (*str != '\0') {
+        if (!isdigit(*str)) {
+            return 0;
+        }
+        ++str;
+    }
+
+    return 1;
+}
