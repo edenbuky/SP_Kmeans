@@ -1,11 +1,11 @@
 #define PY_SSIZE_T_CLEAN 
 #include <Python.h>
 
-static PyObject* geo_sum(PyObject *self, PyObject *args)
+static PyObject* mykmeansssp(PyObject *self, PyObject *args)
 {
     int k , iter;
     /* This parses the Python arguments into a double (d)  variable named z and int (i) variable named n*/
-    if(!PyArg_ParseTuple(args, "ii", &k, &iter)) {
+    if(!PyArg_ParseTuple(args, "i|i", &k, &iter)) {
         return NULL; /* In the CPython API, a NULL value is never valid for a
                         PyObject* so it is used to signal that an error has occurred. */
     }
