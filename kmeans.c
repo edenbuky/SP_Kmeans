@@ -3,163 +3,8 @@
 #include <math.h>
 #include <string.h>
 #include <ctype.h>
-#include "kmeans.h"
+#include <kmeans.h>
 
-int main(int argc, char **argv){
-    int K, d, N, iter, isCentroidsSame, i;
-    point* points;
-    cluster* clusters;
-    
-    if ( argc < 3 ){
-        iter = 200;
-    }
-    else {
-        if (!isNumber(argv[2])) {
-            printf("Invalid maximum iteration!\n");
-            return 1;
-        }
-        iter = atoi(argv[2]);
-    }
-
-    points = readPointsFromFile(&N, &d);
-    if (!isNumber(argv[1])) {
-        freePoints(points, N);
-        printf("Invalid number of clusters!\n");
-        return 1;
-    }
-    else{
-        K = atoi(argv[1]);
-    }
-
-    if (K <= 1 || K >= N) {
-        freePoints(points, N);
-        printf("Invalid number of clusters!\n");
-        return 1;
-    }
-    if (iter < 1 || iter >= MAX_ITER) {
-        freePoints(points, N);
-        printf("Invalid maximum iteration!");
-        return 1;
-    }
-    
-    clusters = (cluster*)malloc(K * sizeof(cluster));
-    if (clusters == NULL) {
-        freePoints(points, N);
-        printf("An Error Has Occurred\n");
-        return 1;
-    }
-    
-    initializeClusters(points, K, clusters, d);
-    
-    /* Assign every xi to the closest cluster k */
-    isCentroidsSame = 0;
-    while (0 < iter && !isCentroidsSame){
-        iter--;
-        oneIter(points, N, clusters, K, d, &isCentroidsSame);
-    }
-    for (i = 0 ; i < K; i++){
-        printPoint(clusters[i].centroid,d);
-        printf("\n");
-    }
-    for (i = 0 ; i < K; i++){
-        free(clusters[i].centroid.coordinates);
-    }
-    free(clusters);
-    freePoints(points, N);
-    return 0;
-}
-
-point* readPointsFromFile(int* numPoints, int* dimensions) {
-    char line[256];
-    int count, pointIndex, coordinateIndex;
-    char* token;
-    point* points;
-    *numPoints = 0;
-    *dimensions = 0;
-    while (fgets(line, sizeof(line), stdin)) {
-        (*numPoints)++;
-        count = 0;
-        token = strtok(line, ",");
-        while (token != NULL) {
-            count++;
-            token = strtok(NULL, ",");
-        }
-        if (*dimensions == 0) {
-            *dimensions = count;
-        } else if (*dimensions != count) {
-            printInvalidInputError("An Error Has Occurred\n");
-            return NULL;
-        }
-    }
-    
-    points = (point*)malloc(*numPoints * sizeof(point));
-    if (points == NULL) {
-        printInvalidInputError("An Error Has Occurred\n");
-        return NULL;
-    }
-
-    rewind(stdin);
-
-    pointIndex = 0;
-    while (fgets(line, sizeof(line), stdin)) {
-        points[pointIndex].coordinates = (double*)malloc(*dimensions * sizeof(double));
-        if (points[pointIndex].coordinates == NULL) {
-            freePoints(points, pointIndex);
-            printInvalidInputError("An Error Has Occurred\n");
-            return NULL;
-        }
-
-        coordinateIndex = 0;
-        token = strtok(line, ",");
-        while (token != NULL) {
-            points[pointIndex].coordinates[coordinateIndex] = atof(token);
-            coordinateIndex++;
-            token = strtok(NULL, ",");
-        }
-        ++pointIndex;
-    }
-    return points;
-}
-
-void freeClusters(cluster* clusters, int K){
-    int i;
-    if (clusters == NULL) {
-        return;
-    }
-    for (i = 0; i < K; i++) {
-        free(clusters[i].points);
-    }
-
-    free(clusters);
-}
-void freePoints(point* points, int numPoints) {
-    int i;
-    if (points == NULL) {
-        return;
-    }
-    for (i = 0; i < numPoints; i++) {
-        if (points[i].coordinates != NULL){
-            free(points[i].coordinates);
-        }
-    }
-
-    free(points);
-}
-
-void initializeClusters(point* points, int K, cluster* clusters, int d){
-    int i,j;
-    for (i = 0; i < K; i++) {
-        clusters[i].centroid.coordinates = (double*)malloc(d * sizeof(double));
-        if (clusters[i].centroid.coordinates == NULL) {
-            printInvalidInputError("An Error Has Occurred");
-            return;
-        }
-        for (j = 0 ; j < d ; j++){
-            clusters[i].centroid.coordinates[j] = points[i].coordinates[j];
-        }
-        clusters[i].size = 0;
-        }
-}
 
 double euclideanDistance(double* p, double* q, int d) {
     double diff, sum = 0.0;
@@ -202,7 +47,7 @@ void printPoint(point point, int d) {
     }
 }
 
-void updateCentroids(cluster* clusters, int K, int d, int* isSame) {
+void updateCentroids(cluster* clusters, int K, int d, int* isSame, double epsilon) {
     int i,j,p;
     double distance, sum;
     point* prevCentroids;
@@ -237,7 +82,7 @@ void updateCentroids(cluster* clusters, int K, int d, int* isSame) {
     
     for (i = 0; i < K; i++) {
         distance = euclideanDistance(clusters[i].centroid.coordinates, prevCentroids[i].coordinates, d);
-        if (distance >= EPSILON) {
+        if (distance >= epsilon) {
             (*isSame) = 0;
             break;
         }
@@ -249,7 +94,7 @@ void updateCentroids(cluster* clusters, int K, int d, int* isSame) {
     free(prevCentroids);
 }
 
-void oneIter(point* points, int N, cluster* clusters, int K, int d, int* isSame){
+void oneIter(point* points, int N, cluster* clusters, int K, int d, int* isSame, double eps){
     int i , indx, newSize;
     point* newPoints;
     indx = 0;
@@ -276,7 +121,7 @@ void oneIter(point* points, int N, cluster* clusters, int K, int d, int* isSame)
         }
     }
 
-    updateCentroids(clusters, K, d,  &(*isSame));
+    updateCentroids(clusters, K, d,  &(*isSame), eps);
 
     for (i = 0; i < K; i++) {
         free(clusters[i].points);
@@ -284,17 +129,3 @@ void oneIter(point* points, int N, cluster* clusters, int K, int d, int* isSame)
     }
 }
 
-int isNumber(const char* str) {
-    if (str == NULL || *str == '\0') {
-        return 0;
-    }
-
-    while (*str != '\0') {
-        if (!isdigit(*str)) {
-            return 0;
-        }
-        ++str;
-    }
-
-    return 1;
-}
