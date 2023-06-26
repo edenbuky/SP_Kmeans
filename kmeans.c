@@ -3,8 +3,30 @@
 #include <math.h>
 #include <string.h>
 #include <ctype.h>
-#include <kmeans.h>
 
+typedef struct {
+    double *coordinates;
+} point;
+
+typedef struct {
+    point *points;
+    point centroid;
+    int size;
+} cluster;
+
+void findNearestCluster(int* res, point x, cluster* clusters, int numClusters, int d);
+
+double euclideanDistance(double* p, double* q, int d);
+
+void freePoints(point* points, int numPoints);
+
+void printInvalidInputError(const char* message);
+
+void printPoint(point point, int d);
+
+void updateCentroids(cluster* clusters, int K, int d, int* isSame, double epsilon);
+
+void oneIter(point* points, int N, cluster* clusters, int K, int d, int* isSame, double eps);
 
 double euclideanDistance(double* p, double* q, int d) {
     double diff, sum = 0.0;
@@ -53,13 +75,13 @@ void updateCentroids(cluster* clusters, int K, int d, int* isSame, double epsilo
     point* prevCentroids;
     prevCentroids = (point*)malloc(K * sizeof(point));
     if (prevCentroids == NULL) {
-        printf("An Error Has Occurred\n");
+        printInvalidInputError("An Error Has Occurred\n");
     }
     
     for (i = 0; i < K; i++) {
         prevCentroids[i].coordinates = (double*)malloc(d * sizeof(double));
         if (prevCentroids[i].coordinates == NULL) {
-            printf("An Error Has Occurred\n");
+            printInvalidInputError("An Error Has Occurred\n");
         }
         for (j = 0; j < d; j++) {
             prevCentroids[i].coordinates[j] = clusters[i].centroid.coordinates[j];
@@ -127,5 +149,18 @@ void oneIter(point* points, int N, cluster* clusters, int K, int d, int* isSame,
         free(clusters[i].points);
         clusters[i].size = 0;
     }
+}
+void freePoints(point* points, int numPoints) {
+    int i;
+    if (points == NULL) {
+        return;
+    }
+    for (i = 0; i < numPoints; i++) {
+        if (points[i].coordinates != NULL){
+            free(points[i].coordinates);
+        }
+    }
+
+    free(points);
 }
 
