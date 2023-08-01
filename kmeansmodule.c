@@ -30,28 +30,28 @@ point* convertPyListToPoints(PyObject *pyList, int n, int d) {
     return points;
 }
 
-PyObject* transferCentersToPyList(cluster* myCluster, int d) {
-    /*Create a Python list to hold the centers*/
-    PyObject* pyCentersList = PyList_New(myCluster->size);
+static PyObject* transferCentersToPyList(cluster* clusters, int k, int d)
+{
+	int i,j;
+	double rounded;
+    PyObject* pyFloat;
+    PyObject* pyPoints; 
+	
 
-    /*Iterate over the centers in the cluster*/
-    for (int i = 0; i < myCluster->size; i++) {
-        /*Create a Python list to hold the coordinates of each center*/
-        PyObject* pyCenterCoords = PyList_New(d);
+	pyPoints = PyList_New(k);
+		for (i = 0; i < k; i++)
+	{
+		PyObject* point = PyList_New(d);
+		for (j = 0; j < d; j++)
+		{	
+		    rounded = round(clusters[i].centroid.coordinates[j] * 10000.0) / 10000.0; 
+			pyFloat = Py_BuildValue("f", rounded); 
+        	PyList_SetItem(point, j, pyFloat);
+		}
+		PyList_SetItem(pyPoints, i, point);
 
-        /*Iterate over the coordinates of the center*/
-        for (int j = 0; j < d; j++) {
-            /*Create a Python float object for each coordinate*/
-            PyObject* pyCoord = PyFloat_FromDouble(myCluster->points[i].coordinates[j]);
-            /*Append the coordinate to the center coordinates list*/
-            PyList_SetItem(pyCenterCoords, j, pyCoord);
-        }
-
-        /*Append the center coordinates list to the centers list*/
-        PyList_SetItem(pyCentersList, i, pyCenterCoords);
-    }
-
-    return pyCentersList;
+	}
+    return pyPoints;
 }
 
 PyObject* kmeans_c(PyObject *PyCentroids, PyObject *PyPoints, int K, int iter, int d, double eps){
@@ -69,6 +69,7 @@ PyObject* kmeans_c(PyObject *PyCentroids, PyObject *PyPoints, int K, int iter, i
     }
     /*Converting a Python lists to an array of points in C*/
     centroids = convertPyListToPoints(PyCentroids, K, d);
+    
     points = convertPyListToPoints(PyPoints, N, d);
 
     /*initialize Clusters*/
@@ -90,7 +91,9 @@ PyObject* kmeans_c(PyObject *PyCentroids, PyObject *PyPoints, int K, int iter, i
         oneIter(points, N, clusters, K, d, &isCentroidsSame, eps);
     }
     /*Transfers cluster centers to a Python list*/
-    pyCentersList = transferCentersToPyList(clusters, d);
+    /*point* cent = clusters->centroid;*/
+    pyCentersList = transferCentersToPyList(clusters, K, d);
+
     
     for (i = 0 ; i < K; i++){
         free(clusters[i].centroid.coordinates);
@@ -101,15 +104,19 @@ PyObject* kmeans_c(PyObject *PyCentroids, PyObject *PyPoints, int K, int iter, i
     return pyCentersList;
 }
 
+
+
 static PyObject* fit(PyObject *self, PyObject *args)
 {
     PyObject *centroids, *points;
     int k, iter, d;
     double eps;
     /* This parses the Python arguments into a double (d)  variable named z and int (i) variable named n*/
-    if(!PyArg_ParseTuple(args, "OOiiid", &k, &iter, &d, &eps)) {
+    if(!PyArg_ParseTuple(args, "OOiiid",&centroids, &points, &k, &iter, &d, &eps)) {
+        
         return NULL; /* In the CPython API, a NULL value is never valid for a
                         PyObject* so it is used to signal that an error has occurred. */
+
     }
 
 /* This builds the answer ("d" = Convert a C double to a Python floating point number) back into a python object */
@@ -136,7 +143,7 @@ PyMODINIT_FUNC PyInit_mykmeanssp(void)
 {
     PyObject *m;
     m = PyModule_Create(&mykmeansspmodule);
-    if (m) {
+    if (!m) {
         return NULL;
     }
     return m;
