@@ -164,3 +164,29 @@ void freePoints(point* points, int numPoints) {
     free(points);
 }
 
+void printClusters(cluster* clusters, int n, int d) {
+    int i;
+    int j;
+    for (i = 0; i < n; ++i) {
+        printf("Cluster %d:\n", i);
+        printf("Centroid: (");
+        for (j = 0; j < d; ++j) {
+            printf("%f", clusters[i].centroid.coordinates[j]);
+            if (j != d - 1) printf(", ");
+        }
+        printf(")\n\n");
+        }
+}
+void printPoints(point* points, int n, int d) {
+    int i;
+    int j;
+    for (i = 0; i < n; ++i) {
+        printf("Point %d: (", i);
+        for (j = 0; j < d; ++j) {
+            printf("%f", points[i].coordinates[j]);
+            if (j != d - 1) printf(", ");
+        }
+        printf(")\n");
+        }
+}
+
